@@ -40,7 +40,7 @@ export default function Dashboard() {
       }
     }
     fetchData();
-    const interval = setInterval(fetchData, 5000); // poll every 5s
+    const interval = setInterval(fetchData, 5); // poll every 5ms
     return () => clearInterval(interval);
   }, []);
 
@@ -48,13 +48,14 @@ export default function Dashboard() {
     <div style={{ display: "flex", gap: "2rem", padding: "2rem", fontFamily: "sans-serif" }}>
       <div>
         <h3>Webcam</h3>
-        <video
+        <img src="http://localhost:3000/camera-stream" alt="Live camera feed" />
+        {/*<video
           ref={videoRef}
           autoPlay
           playsInline
           muted
           style={{ width: 320, height: 240, background: "#000", borderRadius: 8 }}
-        />
+        />*/}
       </div>
 
       <div style={{ flex: 1 }}>
