@@ -5,11 +5,29 @@ import {
 
 const VIDEO_API_URL = "http://localhost:3000/camera-stream";
 const METRICS_API_URL = "http://localhost:3000/metrics";
+const MAX_POINTS = 200;
 
 export default function Dashboard() {
   const [pressureData, setPressureData] = useState([]);
   const [breathingData, setBreathingData] = useState([]);
   const [error, setError] = useState(null);
+
+  const lastTimestamp = useRef({ pressure: null, breathing: null });
+
+  function mergeIfNew(rawField, key, setter, toTime) {
+    // rawField is an array with 0 or 1 items: [{ value, timestamp }]
+    const point = Array.isArray(rawField) ? rawField[0] : rawField;
+    if (!point) return; // nothing returned this poll
+
+    if (point.timestamp === lastTimestamp.current[key]) return; // cached repeat, skip
+
+    lastTimestamp.current[key] = point.timestamp;
+
+    setter((prev) =>
+      [...prev, { name: toTime(point.timestamp), value: point.value, ts: point.timestamp }]
+        .slice(-MAX_POINTS)
+    );
+  }
 
   useEffect(() => {
     async function fetchData() {
@@ -22,25 +40,14 @@ export default function Dashboard() {
         const cardio = json.metrics?.cardio || {};
         const toTime = (ts) => new Date(Number(ts) / 1000).toLocaleTimeString();
 
-        setPressureData(
-          (cardio.arterialPressureTrace || []).map((p) => ({
-            name: toTime(p.timestamp),
-            value: p.value,
-          }))
-        );
-
-        setBreathingData(
-          (breathing.upperTrace || []).map((p) => ({
-            name: toTime(p.timestamp),
-            value: p.value,
-          }))
-        );
+        mergeIfNew(cardio.arterialPressureTrace, "pressure", setPressureData, toTime);
+        mergeIfNew(breathing.upperTrace, "breathing", setBreathingData, toTime);
       } catch (err) {
         setError("API error: " + err.message);
       }
     }
     fetchData();
-    const interval = setInterval(fetchData, 1000); // 1s — adjust as needed
+    const interval = setInterval(fetchData, 1000);
     return () => clearInterval(interval);
   }, []);
 
@@ -66,7 +73,7 @@ export default function Dashboard() {
             <XAxis dataKey="name" />
             <YAxis />
             <Tooltip />
-            <Line type="monotone" dataKey="value" stroke="#ff7300" dot={false} />
+            <Line type="monotone" dataKey="value" stroke="#ff7300" dot={false} isAnimationActive={false} />
           </LineChart>
         </ResponsiveContainer>
 
@@ -77,7 +84,7 @@ export default function Dashboard() {
             <XAxis dataKey="name" />
             <YAxis />
             <Tooltip />
-            <Line type="monotone" dataKey="value" stroke="#387908" dot={false} />
+            <Line type="monotone" dataKey="value" stroke="#387908" dot={false} isAnimationActive={false} />
           </LineChart>
         </ResponsiveContainer>
       </div>
